@@ -1,0 +1,168 @@
+\documentclass{article}
+\usepackage[letterpaper, total={6in, 8in}]{geometry}
+\usepackage{graphicx} %images
+\usepackage[outdir=./]{epstopdf}
+\usepackage{amsmath} %Division grafhic  
+\usepackage{tabularx} %Table
+\usepackage{float}
+\usepackage{subfig}
+\usepackage[numbered]{mcode}
+\graphicspath{ {./Images} }
+
+\begin{document}
+
+\begin{titlepage}
+  \vspace*{\stretch{1.0}}
+  \begin{center}
+     \Large\textbf{Laboratory \#6: I2C}\\
+     \vspace{4mm}
+     \large\textit{By: Jakob Schoeberle}\\
+     \vspace{4mm}
+     \large\textbf{Spring 2023 ECE 381 Microcontrollers}\\
+  \end{center}
+  \vspace*{\stretch{2.0}}
+\end{titlepage}
+
+\section*{Introduction}
+
+This lab we were introduced to I2C with making a jolt detector. Using our PSoC development board’s accelerometer and the FRAM. We also utilized the sleep function to cut down on the power usage to enable this to be powered using a battery for an extended amount of time. I2C is used to communicate between the accelerometer to the microcontroller and same for the FRAM. After a jolt is detected the PSoC need to wake up store new data to the FRAM then go back to sleep. We also built a function to read all jolts at once and anther function to clear the FRAM for future use.
+
+\section*{Materials}
+
+\begin{tabularx}{0.9\textwidth} { 
+  | >{\raggedright\arraybackslash}X 
+  | >{\centering\arraybackslash}X 
+  | >{\raggedleft\arraybackslash}X | }
+ \hline
+ CY8CKIT-044 & 1\\
+ \hline
+\end{tabularx}
+
+\section*{Procedure and Results}
+  \subsection*{Hardware Setup}
+    
+    \begin{figure}[H]
+      \centering
+      \includegraphics[width=0.7\linewidth]{Images/PSOC 4 4200M.pdf}
+      %\includegraphics[width=0.7\linewidth]{PSOC44200M.eps}
+      \caption{Wiring Diagram}
+      \label{fig:Wiring Diagram} 
+    \end{figure}
+
+    \begin{figure}[H]
+      \centering
+      \includegraphics[width=0.9\linewidth]{Top Design.png}
+      \caption{Top Design}
+      \label{fig:Top Design} 
+    \end{figure}
+
+    \begin{figure}[H]
+      \centering
+      \includegraphics[width=0.9\linewidth]{Configuration_1.png}
+      \caption{I2C Configuration}
+      \label{fig:I2C Configuration} 
+    \end{figure}
+
+    \begin{figure}[H]
+      \centering
+      \includegraphics[width=0.9\linewidth]{Configuration_2.png}
+      \caption{Accelerometer Pin Configuration}
+      \label{fig:Accelerometer Pin Configuration} 
+    \end{figure}
+
+    \begin{figure}[H]
+      \centering
+      \includegraphics[width=0.9\linewidth]{Configuration_3.png}
+      \caption{LED Pin Configuration}
+      \label{fig:LED Pin Configuration} 
+    \end{figure}
+
+    \begin{figure}[H]
+      \centering
+      \includegraphics[width=0.9\linewidth]{Pin Assignment.png}
+      \caption{Pin Assignment}
+      \label{fig:Pin Assignment} 
+    \end{figure}
+
+    The hardware setup was very simple since all the components needed are on the development board we are using. This means we did not have do any external wiring this lab. As seen in Figure \ref{fig:Wiring Diagram}. The Top Design as seen in Figure \ref{fig:Top Design} uses an I2C module and a couple pins for interrupts. We also have our led pins for the playback. Lastly, we have an UART used for debug. Configurations for these can be seen in Figure \ref{fig:I2C Configuration}, Figure \ref{fig:Accelerometer Pin Configuration}, and in Figure \ref {fig:LED Pin Configuration}. Finally we have our Pin Assignment in Figure \ref{fig:Pin Assignment}.
+
+  \subsection*{Program Logic}
+
+    \begin{figure}[H]
+      \lstinputlisting[linerange={22-27}, firstnumber=22, language=C]{main.c}
+      \caption{Accelerometer Configuration} 
+      \label{fig:Accelerometer Configuration} 
+    \end{figure}
+
+    First, we started by setting registers in the accelerometer to configure it to our use case. In Figure \ref{fig:Accelerometer Configuration} we are setting the control register one to all zeros. This is done to prepare the accelerometer for the main configurations. Using the same block of code just with a different write buff we configured the accelerometer to interrupt on a 3g jolt on all axis.
+
+    \begin{figure}[H]
+      \lstinputlisting[linerange={81-88}, firstnumber=81, language=C]{main.c}
+      \caption{Accelerometer Reset} 
+      \label{fig:Accelerometer Reset} 
+    \end{figure}
+
+    Throughout this lab it is necessary to reset the accelerometer for the device to behave properly. This is done right after the accelerometer configuration and at least once after each interrupt. This can be seen in Figure \ref{fig:Accelerometer Reset}.
+
+    \begin{figure}[H]
+      \lstinputlisting[linerange={115-151}, firstnumber=115, breaklines, language=C]{main.c}
+      \caption{Clear FRAM} 
+      \label{fig:Clear FRAM} 
+    \end{figure}
+
+    If the button was pressed and held, we go int to a chunk of code as seen in Figure \ref{fig:Read FRAM}. This chuck of code does a couple of things. First it turns the LEDs on to indicate the button was pressed and held for 5 seconds. Once the lights come on it waits until you release the button. After which it starts clearing the FRAM. This is done in a similar way to how we configured the accelerometer from above but this time we are writing a lot more data than before. We start by filling our array with zeros. After this is done with send those zeros to the FRAM in a couple chunks. This is done this way due to the amount of memory we have on the PSoC itself. While it’s doing this it flashes the LEDs to indicate to the user that the clearing process it happening. 
+
+    \begin{figure}[H]
+      \lstinputlisting[linerange={152-191}, firstnumber=152, breaklines, language=C]{main.c}
+      \lstinputlisting[linerange={214-221}, firstnumber=214, breaklines, language=C]{main.c}
+      \caption{Read FRAM} 
+      \label{fig:Read FRAM} 
+    \end{figure}
+
+    If the button only pressed, we know the user wants to read the FRAM. This is done in a chunk of code as seen in Figure \ref{fig:Read FRAM}. What this chunk does is reads the FRAM from the start until it read a zero. Once it hits a zero breaks the loop. This is due to the way we store our jolts. If the address reads a number, then we know that a jolt happen. This number will be set in a later in the code.
+
+    \begin{figure}[H]
+      \lstinputlisting[linerange={267-301}, firstnumber=267, breaklines, language=C]{main.c}
+      \caption{Read Accelerometer \& Write FRAM} 
+      \label{fig:Read Accelerometer & Write FRAM} 
+    \end{figure}
+
+    The last chunk of code is used for when a jolt was detected. As seen in Figure \ref{fig:Read Accelerometer & Write FRAM}. When a jolt is detected, the accelerometer sets an interrupt to high. When that interrupt is high, we run this code. First it reads the accelerometer for the axis of the jolt or jolts. Once read we first find a spot in the FRAM for this new jolt. This is done by scanning the FRAM until we read the first zero value. Once we found that we then write that address our jolt. We also write a zero to the next address. This is done incase of a faulty clear. After that it resets the accelerometer and goes to the top of the code to a sleep until the next interrupt is active.
+
+  \subsection*{Verification}
+
+    \begin{figure}[H]
+      \centering
+      \includegraphics[width=1\columnwidth]{Working Lab.jpg}
+      \caption{Working Lab}
+      \label{fig:Working Lab} 
+    \end{figure}
+
+    \begin{figure}[H]
+      \centering
+      \subfloat[\centering Sleep Enabled]{{\includegraphics[width=5cm]{Images/PXL_20230330_012230607.jpg} }}
+      \qquad
+      \subfloat[\centering Sleep Disabled]{{\includegraphics[width=5cm]{Images/PXL_20230330_012255587.jpg} }}
+      \caption{Sleep Mode}
+      \label{fig:Sleep Mode}
+    \end{figure}
+
+    Lastly, we verified though testing a bunch of jolts and pressing the button. You can see in Figure \ref{fig:Working Lab} the LEDs turned on indicating the FRAM was being cleared. We also checked the clear by using a similar bit of code to our zero finder for writing the FRAM. Instead we looked for a number that we planted far off into the memory. Lastly we hooked the PSoC up to a multimeter to find the current draw to verify that it was going to sleep. This can be seen in Figure \ref{fig:Sleep Mode}. With a bit of napken math I would assume this setup could last on a AA battery for a couple of weeks. 
+
+\section*{Conclusion}
+
+This lab was a pain to get working fully and to understand I2C. That being said I feel confident that I could redo this lab in a day and add more functionality. We learned a lot about how to talk to devices and how the reset only can only reset the things it resets. 
+
+  \pagebreak 
+
+\section*{Appendix}
+
+  \lstinputlisting[caption=main.c, breaklines, language=C]{main.c}
+
+  \lstinputlisting[caption=TEST\_ISR.c,linerange={26-32}, firstnumber=26, breaklines, language=C]{TEST\_ISR.c}
+  \lstinputlisting[linerange={160-173}, firstnumber=160, breaklines, language=C]{TEST\_ISR.c}
+
+  \lstinputlisting[caption=ACCEL\_ISR.c,linerange={26-34}, firstnumber=26, breaklines, language=C]{ACCEL\_ISR.c}
+  \lstinputlisting[linerange={162-175}, firstnumber=162, breaklines, language=C]{ACCEL\_ISR.c}
+
+\end{document}
