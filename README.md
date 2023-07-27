@@ -1,2 +1,2 @@
 # LaTeX_LabReport_Template
-Lab Report Template
+My Lab Report Template from ECE381
